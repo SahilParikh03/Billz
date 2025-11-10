@@ -2,9 +2,21 @@
 
 A blockchain-based payment gateway for automated services using the X-402 protocol on Solana.
 
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Node](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen.svg)](https://nodejs.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue.svg)](https://www.typescriptlang.org/)
+
 ## What is Billz?
 
-Billz is a pay-per-use automation platform that allows users to pay for and execute automated tasks using USDC cryptocurrency on the Solana blockchain. It implements the X-402 payment protocol (similar to HTTP 402 "Payment Required") to gate access to services behind verified on-chain payments.
+Billz is a **pay-per-use automation platform** that allows users to pay for and execute automated tasks using USDC cryptocurrency on the Solana blockchain. It implements the **X-402 payment protocol** (similar to HTTP 402 "Payment Required") to gate access to services behind verified on-chain payments.
+
+### Why Billz?
+
+- **No subscriptions** - Pay only for what you use
+- **Instant payments** - Blockchain-powered micropayments
+- **Auto refunds** - Failed jobs trigger automatic refunds
+- **Trustless** - All payments verified on-chain
+- **Extensible** - Easy to add new automation services
 
 ## Features
 
@@ -40,12 +52,41 @@ Billz consists of three core processes:
 6. **Processing**: Worker picks up job and executes with 3 retry attempts
 7. **Settlement**: On success, payment is settled; on failure, refund is initiated
 
+## Quick Start
+
+Get started in 10 minutes:
+
+```bash
+# 1. Clone the repository
+git clone https://github.com/yourusername/billz.git
+cd billz
+
+# 2. Install dependencies
+npm install
+
+# 3. Set up environment variables
+cp .env.local.example .env.local
+# Edit .env.local with your configuration
+
+# 4. Set up database
+npm run db:generate
+npm run db:push
+
+# 5. Start development server
+npm run dev
+```
+
+Open [http://localhost:3000](http://localhost:3000) and connect your Phantom wallet!
+
+For detailed setup instructions, see [QUICKSTART.md](./QUICKSTART.md).
+
 ## Prerequisites
 
-- Node.js 18+
-- Solana wallet with USDC
-- PostgreSQL database (for Prisma)
-- N8N instance (for automation workflows)
+- **Node.js 18+**
+- **MongoDB** database (MongoDB Atlas or local)
+- **Solana wallet** with USDC (Phantom recommended)
+- **N8N instance** (for automation workflows)
+- **Git**
 
 ## Environment Variables
 
@@ -53,24 +94,30 @@ Create a `.env.local` file with the following:
 
 ```bash
 # Network Configuration
-NEXT_PUBLIC_NETWORK=solana-devnet  # or solana-mainnet
+NEXT_PUBLIC_NETWORK=solana-devnet  # or solana for mainnet
 NETWORK=solana
 
 # USDC Token Addresses
-NEXT_PUBLIC_USDC_DEVNET=4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU
-NEXT_PUBLIC_USDC_MAINNET=EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v
-USDC_MINT_ADDRESS=4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU  # Use devnet for testing
+USDC_MINT_ADDRESS=4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU  # Devnet for testing
 
 # Backend Configuration
 NEXT_PUBLIC_API_URL=http://localhost:3000
 TREASURY_WALLET_ADDRESS=your_treasury_wallet_address_here
 
 # Solana RPC
-SOLANA_RPC_URL=https://api.devnet.solana.com  # or mainnet-beta
+SOLANA_RPC_URL=https://api.devnet.solana.com
 
-# Refund Configuration (Optional - for automated refunds)
-OPERATIONAL_WALLET_PRIVATE_KEY=your_base64_encoded_private_key
+# Database (MongoDB)
+DATABASE_URL="mongodb://localhost:27017/billz"
+
+# N8N Configuration
+N8N_BASE_URL=http://localhost:5678
+
+# Optional: Automated refunds (⚠️ hot wallet risk)
+# OPERATIONAL_WALLET_PRIVATE_KEY=your_base64_encoded_private_key
 ```
+
+For a complete example, see [.env.local.example](./.env.local.example).
 
 ## Installation
 
@@ -121,12 +168,44 @@ node --loader ts-node/esm ./lib/job-queue.ts
 node --loader ts-node/esm ./lib/refund-processor.ts
 ```
 
+## Project Structure
+
+```
+billz/
+├── app/
+│   ├── api/
+│   │   ├── execute-automation/   # Main payment & execution endpoint
+│   │   ├── job/[jobId]/status/   # Job status polling endpoint
+│   │   └── health/               # Health check for monitoring
+│   ├── layout.tsx                # Root layout with wallet provider
+│   ├── page.tsx                  # Landing page
+│   └── globals.css               # Global styles
+├── components/
+│   ├── WalletProvider.tsx        # Solana wallet setup
+│   └── ExecuteAutomationButton.tsx  # Smart execution button
+├── lib/
+│   ├── x402-handler.ts           # Server-side payment handler
+│   ├── x402-client.ts            # Client-side payment client
+│   ├── job-queue.ts              # Background job processor
+│   ├── refund-processor.ts       # Automated refund system
+│   ├── n8n-client.ts             # N8N workflow integration
+│   └── database.ts               # Prisma client
+├── prisma/
+│   └── schema.prisma             # MongoDB schema
+├── README.md                     # This file
+├── QUICKSTART.md                 # Quick setup guide
+├── DEPLOYMENT.md                 # Production deployment guide
+└── .env.local.example            # Example environment variables
+```
+
 ## Database Schema
 
-The system uses Prisma with the following main models:
+The system uses Prisma with MongoDB:
 
-- **Payment**: Stores payment records with verification data
+- **Payment**: Stores payment records with verification data and refund tracking
 - **Execution**: Tracks job status (pending → running → completed/failed)
+
+View the full schema in [prisma/schema.prisma](./prisma/schema.prisma).
 
 ## Adding New Automations
 
@@ -217,18 +296,67 @@ Check job execution status
 
 ## Technology Stack
 
-- **Frontend**: Next.js, React, TailwindCSS
+- **Frontend**: Next.js 14, React 18, TailwindCSS
 - **Blockchain**: Solana Web3.js, SPL Token
 - **Wallet**: Solana Wallet Adapter (Phantom)
-- **Payment Protocol**: x402-solana
-- **Database**: Prisma ORM
+- **Payment Protocol**: X-402 (x402-solana)
+- **Database**: MongoDB with Prisma ORM
 - **Automation**: N8N workflows
 - **Process Management**: PM2
+- **Language**: TypeScript
+
+## Documentation
+
+- **[QUICKSTART.md](./QUICKSTART.md)** - Get running locally in 10 minutes
+- **[DEPLOYMENT.md](./DEPLOYMENT.md)** - Production deployment guide
+- **[.env.local.example](./.env.local.example)** - Example environment configuration
+
+## Contributing
+
+Contributions are welcome! Please:
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+## Roadmap
+
+- [ ] Support for multiple cryptocurrencies (SOL, other SPL tokens)
+- [ ] Dashboard for tracking automation history
+- [ ] Webhook notifications for job completion
+- [ ] API key authentication for programmatic access
+- [ ] Multi-wallet support (Solflare, Backpack, etc.)
+- [ ] Analytics and usage metrics
+
+## Security
+
+- Treasury wallet uses public address only (no private key on server)
+- Payment verification happens on-chain
+- All environment variables should be kept secure
+- Consider manual refunds for production (avoid hot wallet risk)
+
+For security issues, please email security@yourdomain.com (do not open public issues).
 
 ## License
 
-[Add your license here]
+[Add your license here - MIT recommended]
 
-## Support
+## Support & Community
 
-For issues and questions, please open an issue in the repository.
+- **Issues**: [GitHub Issues](https://github.com/yourusername/billz/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/yourusername/billz/discussions)
+- **Twitter**: [@yourusername](https://twitter.com/yourusername)
+
+## Acknowledgments
+
+Built with:
+- [Solana](https://solana.com) - High-performance blockchain
+- [N8N](https://n8n.io) - Workflow automation
+- [Next.js](https://nextjs.org) - React framework
+- [Prisma](https://prisma.io) - Database ORM
+
+---
+
+**Made with ❤️ for the Solana ecosystem**
