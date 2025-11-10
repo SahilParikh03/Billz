@@ -58,7 +58,7 @@ Get started in 10 minutes:
 
 ```bash
 # 1. Clone the repository
-git clone https://github.com/yourusername/billz.git
+git clone https://github.com/sahilparikh03/billz.git
 cd billz
 
 # 2. Install dependencies
