@@ -1,0 +1,63 @@
+// Prisma schema for Billz - MongoDB
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+// Payment records - tracks all incoming payments
+model Payment {
+  id                   String     @id @default(auto()) @map("_id") @db.ObjectId
+  automationId         String
+  amountUsdc           BigInt     // Amount in atomic units (micro-USDC, 6 decimals)
+  paymentHeader        String     // Base64 encoded X-402 payment header
+  paymentRequirements  String     // JSON stringified payment requirements
+  verifiedAt           DateTime   @default(now())
+  settledAt            DateTime?  // When payment was settled on-chain (after successful execution)
+
+  // Refund tracking
+  refundStatus         String?    // null, 'pending', 'approved', 'completed'
+  refundReason         String?
+  refundTxSignature    String?
+  refundedAt           DateTime?
+
+  // Relations
+  execution            Execution?
+
+  // Indexes
+  @@index([automationId])
+  @@index([refundStatus])
+  @@index([verifiedAt])
+}
+
+// Execution jobs - tracks automation execution status
+model Execution {
+  id                   String    @id @default(auto()) @map("_id") @db.ObjectId
+  paymentId            String    @unique @db.ObjectId
+  automationId         String
+  params               Json      // User-provided parameters for the automation
+  paymentHeader        String
+  paymentRequirements  String    // JSON stringified
+
+  // Status tracking
+  status               String    // 'pending', 'running', 'completed', 'failed'
+  createdAt            DateTime  @default(now())
+  startedAt            DateTime?
+  completedAt          DateTime?
+  durationSeconds      Int?
+
+  // Results
+  result               Json?     // Automation output (on success)
+  error                String?   // Error message (on failure)
+
+  // Relations
+  payment              Payment   @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+
+  // Indexes
+  @@index([status])
+  @@index([automationId])
+  @@index([createdAt])
+}
